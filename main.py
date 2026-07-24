@@ -1,39 +1,51 @@
 # ╔══════════════════════════════════════════════════════════════╗
-# ║     ULTIMATE PANEL SCRAPER – Auto‑Discovery Edition        ║
-# ║     Survives password changes, fetches OTPs reliably       ║
-# ║     by @DarkTechZone0 – for WormGPT                       ║
+# ║     PANEL SCRAPER – Node.js Logic Ported to Python         ║
+# ║     Working panel: 54.39.104.241/ints                      ║
+# ║     with /logs endpoint                                    ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 import os
 import re
 import time
 import json
+import logging
 import threading
-import requests
+from logging.handlers import RotatingFileHandler
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from datetime import datetime
 
+# ---------- LOGGING ----------
+log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+log_handler = RotatingFileHandler('app.log', maxBytes=100000, backupCount=3)
+log_handler.setFormatter(log_formatter)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logger.addHandler(log_handler)
+console = logging.StreamHandler()
+console.setFormatter(log_formatter)
+logger.addHandler(console)
+
 app = Flask(__name__)
 CORS(app, origins="*", supports_credentials=True)
 
-# ---------- CONFIG ----------
-BASE_URL = os.environ.get("PANEL_BASE_URL", "http://54.38.176.48/ints/")
+# ---------- CONFIG (MATCHES WORKING NODE.JS) ----------
+BASE_URL = os.environ.get("PANEL_BASE_URL", "http://54.39.104.241/ints")
 USERNAME = os.environ.get("PANEL_USER", "Hassnain756")
 PASSWORD = os.environ.get("PANEL_PASS", "Hassnain756")
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36",
     "X-Requested-With": "XMLHttpRequest",
-    "Origin": BASE_URL.rstrip('/'),
+    "Origin": BASE_URL,
     "Accept-Language": "en-US,en;q=0.9",
     "Accept": "application/json, text/plain, */*"
 }
 
-# ---------- COMPLETE COUNTRY MAP (ALL COUNTRIES) ----------
-# (I've included the full map from earlier – paste it here)
+# ---------- FULL COUNTRY MAP (SAME AS NODE.JS) ----------
 COUNTRY_MAP = {
     '1': {'code': '+1', 'name': 'USA/Canada'},
     '7': {'code': '+7', 'name': 'Russia'},
@@ -306,262 +318,6 @@ FLAG_MAP = {
     'Georgia': '🇬🇪', 'Kyrgyzstan': '🇰🇬', 'Uzbekistan': '🇺🇿'
 }
 
-# ---------- SESSION MANAGER WITH AUTO‑DISCOVERY ----------
-class PanelSession:
-    def __init__(self):
-        self.session = None
-        self.sesskey = None
-        self.last_login = 0
-        self.is_logging_in = False
-        self.consecutive_failures = 0
-        self.FAILURE_THRESHOLD = 5
-        self.BREAKER_TIMEOUT = 30
-        self.lock = threading.Lock()
-        self._keep_alive_running = False
-        self.login_path = None
-        self.signin_path = None
-
-    def _create_session(self):
-        sess = requests.Session()
-        retry = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
-        adapter = HTTPAdapter(max_retries=retry, pool_connections=10, pool_maxsize=20)
-        sess.mount('http://', adapter)
-        sess.mount('https://', adapter)
-        return sess
-
-    def _discover_login(self):
-        """Try common login page paths."""
-        test_paths = [
-            "/login", "/sign-in", "/admin/login", "/index.php/login",
-            "/auth/login", "/user/login", "/login.php", "/admin"
-        ]
-        for path in test_paths:
-            try:
-                r = self.session.get(BASE_URL.rstrip('/') + path, timeout=5, headers=HEADERS)
-                if r.status_code == 200 and ("login" in r.text.lower() or "sign in" in r.text.lower()):
-                    print(f"[DISCOVER] Found login at {path}")
-                    return path
-            except:
-                continue
-        return None
-
-    def _discover_signin(self):
-        """Try common signin/action paths."""
-        test_paths = ["/signin", "/login", "/auth", "/index.php/signin", "/admin/login", "/user/login"]
-        for path in test_paths:
-            try:
-                # Just test if it returns 200 or 302 when we send a dummy POST
-                r = self.session.post(BASE_URL.rstrip('/') + path, data={"test": "1"}, timeout=5, allow_redirects=False)
-                if r.status_code in (200, 302, 301):
-                    print(f"[DISCOVER] Found signin endpoint at {path}")
-                    return path
-            except:
-                continue
-        return None
-
-    def _get_captcha_answer(self, html):
-        m = re.search(r'What is (\d+) \+ (\d+) = \?', html)
-        if m:
-            return int(m[1]) + int(m[2])
-        # Try other captcha patterns
-        m = re.search(r'(\d+)\s*\+\s*(\d+)\s*=\s*\?', html)
-        if m:
-            return int(m[1]) + int(m[2])
-        return None
-
-    def _extract_sesskey(self, html):
-        patterns = [
-            r'data_smscdr\.php[^"]*sesskey=([^&"\s]+)',
-            r'sesskey=([^&\s"\']+)',
-            r'var\s+sesskey\s*=\s*["\']([^"\']+)["\'];',
-            r'SESSKEY\s*[:=]\s*["\']?([a-zA-Z0-9+/=]+)["\']?'
-        ]
-        for pat in patterns:
-            m = re.search(pat, html)
-            if m:
-                return m.group(1)
-        return None
-
-    def _validate(self):
-        try:
-            url = f"{BASE_URL.rstrip('/')}/agent/res/data_smsnumbers.php"
-            params = {"sEcho": "1", "iDisplayStart": "0", "iDisplayLength": "1", "_": int(time.time()*1000)}
-            if self.sesskey:
-                params["sesskey"] = self.sesskey
-            resp = self.session.get(
-                url,
-                headers={**HEADERS, "Referer": f"{BASE_URL.rstrip('/')}/agent/MySMSNumbers2"},
-                params=params,
-                timeout=10
-            )
-            if resp.status_code in (503, 403):
-                time.sleep(3)
-                return self._validate()
-            if resp.status_code == 200 and resp.json().get("aaData") is not None:
-                return True
-        except Exception as e:
-            print(f"[VALIDATE] Error: {e}")
-        return False
-
-    def login(self):
-        with self.lock:
-            if self.is_logging_in:
-                while self.is_logging_in:
-                    time.sleep(0.2)
-                return self.session is not None
-
-            self.is_logging_in = True
-            try:
-                print("[LOGIN] Starting...")
-                self.session = self._create_session()
-
-                # 1. Discover login page
-                if not self.login_path:
-                    self.login_path = self._discover_login()
-                    if not self.login_path:
-                        raise Exception("Could not find login page")
-                login_url = BASE_URL.rstrip('/') + self.login_path
-
-                # 2. GET login page
-                r1 = self.session.get(login_url, headers=HEADERS, timeout=10)
-                if r1.status_code != 200:
-                    raise Exception(f"Login page returned {r1.status_code}")
-
-                # 3. Extract captcha if present
-                captcha = self._get_captcha_answer(r1.text)
-                if captcha:
-                    print(f"[LOGIN] Captcha answer: {captcha}")
-
-                # 4. Discover signin endpoint if not known
-                if not self.signin_path:
-                    self.signin_path = self._discover_signin()
-                    if not self.signin_path:
-                        # Try common /signin or /login
-                        self.signin_path = "/signin"
-                signin_url = BASE_URL.rstrip('/') + self.signin_path
-
-                # 5. Build payload
-                data = {"username": USERNAME, "password": PASSWORD}
-                if captcha:
-                    data["capt"] = str(captcha)
-
-                # 6. POST login
-                r2 = self.session.post(
-                    signin_url,
-                    data=data,
-                    headers={**HEADERS, "Content-Type": "application/x-www-form-urlencoded"},
-                    allow_redirects=False,
-                    timeout=10
-                )
-                print(f"[LOGIN] POST status: {r2.status_code}")
-
-                if r2.status_code in (302, 301):
-                    self.last_login = time.time()
-                    print("[LOGIN] Success (redirect)")
-                    success = True
-                elif r2.status_code == 200:
-                    if "logout" in r2.text.lower() or "dashboard" in r2.text.lower():
-                        self.last_login = time.time()
-                        print("[LOGIN] Success (200 with dashboard)")
-                        success = True
-                    else:
-                        # Maybe it's a JSON response
-                        try:
-                            json_resp = r2.json()
-                            if json_resp.get("status") == "success" or json_resp.get("success"):
-                                self.last_login = time.time()
-                                print("[LOGIN] Success (JSON)")
-                                success = True
-                            else:
-                                raise Exception("Login failed")
-                        except:
-                            raise Exception("Login failed")
-                else:
-                    raise Exception(f"Login returned {r2.status_code}")
-
-                # 7. Fetch sesskey
-                time.sleep(0.5)
-                r3 = self.session.get(
-                    BASE_URL.rstrip('/') + "/agent/SMSCDRStats",
-                    headers={"Referer": BASE_URL.rstrip('/') + "/agent/SMSCDRStats"},
-                    timeout=10
-                )
-                if r3.status_code == 200:
-                    self.sesskey = self._extract_sesskey(r3.text)
-                    if self.sesskey:
-                        print(f"[SESSKEY] Found: {self.sesskey}")
-
-                # 8. Validate session
-                if not self._validate():
-                    raise Exception("Session validation failed")
-
-                # 9. Start keep-alive
-                self._keep_alive_running = True
-                threading.Thread(target=self._keep_alive_loop, daemon=True).start()
-                return True
-
-            except Exception as e:
-                print(f"[LOGIN] Failed: {e}")
-                self.session = None
-                self.sesskey = None
-                return False
-            finally:
-                self.is_logging_in = False
-
-    def _keep_alive_loop(self):
-        while self._keep_alive_running:
-            time.sleep(300)
-            try:
-                if self.session:
-                    self.session.get(BASE_URL.rstrip('/') + "/agent/MySMSNumbers2", headers=HEADERS, timeout=5)
-                    print("[KEEP-ALIVE] Ping sent.")
-            except:
-                pass
-
-    def ensure_session(self):
-        if self.consecutive_failures >= self.FAILURE_THRESHOLD:
-            print(f"[CIRCUIT] Cooling down {self.BREAKER_TIMEOUT}s")
-            time.sleep(self.BREAKER_TIMEOUT)
-            self.consecutive_failures = 0
-        if not self.session:
-            return self.login()
-        if not self._validate():
-            print("[SESSION] Invalid, re‑logging...")
-            return self.login()
-        self.consecutive_failures = 0
-        return True
-
-    def request(self, method, url, **kwargs):
-        if not self.ensure_session():
-            return None
-        try:
-            resp = self.session.request(method, url, **kwargs)
-            if resp.status_code in (503, 403):
-                print(f"[REQUEST] {resp.status_code}, re‑logging...")
-                self.login()
-                if self.session:
-                    resp = self.session.request(method, url, **kwargs)
-                    if resp.status_code == 200:
-                        self.consecutive_failures = 0
-                        return resp
-            if resp.status_code == 200:
-                return resp
-        except Exception as e:
-            print(f"[REQUEST] Error: {e}")
-            self.consecutive_failures += 1
-            return None
-        self.consecutive_failures += 1
-        return None
-
-# ---------- GLOBAL SESSION ----------
-panel = PanelSession()
-
-# ---------- OTP CACHE ----------
-otp_cache = {"data": [], "timestamp": 0}
-cache_lock = threading.Lock()
-CACHE_TTL = 10
-CACHE_FALLBACK = 300
-
 # ---------- HELPERS ----------
 def get_country(phone_digits):
     for length in range(4, 0, -1):
@@ -614,10 +370,242 @@ def extract_otp(text):
                 return m.group(1)
     return None
 
-# ---------- FETCH OTPs ----------
+# ---------- SESSION MANAGER (NODE.JS STYLE) ----------
+class PanelSession:
+    def __init__(self):
+        self.session = None
+        self.sesskey = None
+        self.last_login = 0
+        self.is_logging_in = False
+        self.consecutive_failures = 0
+        self.FAILURE_THRESHOLD = 5
+        self.BREAKER_TIMEOUT = 30
+        self.lock = threading.Lock()
+        self._keep_alive_running = False
+
+    def _create_session(self):
+        sess = requests.Session()
+        retry = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
+        adapter = HTTPAdapter(max_retries=retry, pool_connections=10, pool_maxsize=20)
+        sess.mount('http://', adapter)
+        sess.mount('https://', adapter)
+        return sess
+
+    def _get_captcha_answer(self, html):
+        m = re.search(r'What is (\d+) \+ (\d+) = \?', html)
+        if m:
+            return int(m[1]) + int(m[2])
+        return None
+
+    def _extract_sesskey(self, html):
+        patterns = [
+            r'data_smscdr\.php[^"]*sesskey=([^&"\s]+)',
+            r'sesskey=([^&\s"\']+)',
+            r'var\s+sesskey\s*=\s*["\']([^"\']+)["\'];',
+            r'SESSKEY\s*[:=]\s*["\']?([a-zA-Z0-9+/=]+)["\']?'
+        ]
+        for pat in patterns:
+            m = re.search(pat, html)
+            if m:
+                return m.group(1)
+        return None
+
+    def _validate(self):
+        try:
+            url = f"{BASE_URL}/agent/res/data_smsnumbers.php"
+            params = {"sEcho": "1", "iDisplayStart": "0", "iDisplayLength": "1", "_": int(time.time()*1000)}
+            if self.sesskey:
+                params["sesskey"] = self.sesskey
+            resp = self.session.get(
+                url,
+                headers={**HEADERS, "Referer": f"{BASE_URL}/agent/MySMSNumbers2"},
+                params=params,
+                timeout=10
+            )
+            if resp.status_code in (503, 403):
+                time.sleep(3)
+                return self._validate()
+            if resp.status_code == 200 and resp.json().get("aaData") is not None:
+                return True
+        except Exception as e:
+            logger.error(f"Validate error: {e}")
+        return False
+
+    def login(self):
+        with self.lock:
+            if self.is_logging_in:
+                while self.is_logging_in:
+                    time.sleep(0.2)
+                return self.session is not None
+
+            self.is_logging_in = True
+            try:
+                logger.info("[LOGIN] Starting...")
+                self.session = self._create_session()
+                login_paths = ["/login", "/sign-in"]
+                success = False
+                for path in login_paths:
+                    try:
+                        r1 = self.session.get(BASE_URL + path, timeout=10)
+                        if r1.status_code in (503, 403):
+                            logger.warning(f"[LOGIN] {r1.status_code} on {path}, waiting 3s...")
+                            time.sleep(3)
+                            continue
+                        if r1.status_code != 200:
+                            continue
+                        captcha = self._get_captcha_answer(r1.text)
+                        if not captcha:
+                            continue
+                        logger.info(f"[LOGIN] Captcha answer: {captcha}")
+                        data = {"username": USERNAME, "password": PASSWORD, "capt": str(captcha)}
+                        r2 = self.session.post(
+                            BASE_URL + "/signin",
+                            data=data,
+                            allow_redirects=False,
+                            timeout=10
+                        )
+                        logger.info(f"[LOGIN] POST status: {r2.status_code}")
+                        if r2.status_code in (503, 403):
+                            time.sleep(3)
+                            continue
+                        if r2.status_code in (302, 301):
+                            self.last_login = time.time()
+                            logger.info(f"[LOGIN] Success ({r2.status_code})")
+                            success = True
+                            break
+                        elif r2.status_code == 200:
+                            if "logout" in r2.text.lower() or "dashboard" in r2.text.lower():
+                                self.last_login = time.time()
+                                logger.info("[LOGIN] Success (200)")
+                                success = True
+                                break
+                    except Exception as e:
+                        logger.error(f"[LOGIN] Error with {path}: {e}")
+
+                if not success:
+                    raise Exception("All login paths failed")
+
+                time.sleep(0.5)
+                r3 = self.session.get(
+                    BASE_URL + "/agent/SMSCDRStats",
+                    headers={"Referer": BASE_URL + "/agent/SMSCDRStats"},
+                    timeout=10
+                )
+                if r3.status_code == 200:
+                    self.sesskey = self._extract_sesskey(r3.text)
+                    if self.sesskey:
+                        logger.info(f"[SESSKEY] Found: {self.sesskey}")
+
+                if not self._validate():
+                    raise Exception("Session validation failed")
+
+                self._keep_alive_running = True
+                threading.Thread(target=self._keep_alive_loop, daemon=True).start()
+                return True
+            except Exception as e:
+                logger.error(f"[LOGIN] Failed: {e}")
+                self.session = None
+                self.sesskey = None
+                return False
+            finally:
+                self.is_logging_in = False
+
+    def _keep_alive_loop(self):
+        while self._keep_alive_running:
+            time.sleep(300)
+            try:
+                if self.session:
+                    self.session.get(BASE_URL + "/agent/MySMSNumbers2", headers=HEADERS, timeout=5)
+                    logger.debug("[KEEP-ALIVE] Ping sent.")
+            except:
+                pass
+
+    def ensure_session(self):
+        if self.consecutive_failures >= self.FAILURE_THRESHOLD:
+            logger.warning(f"[CIRCUIT] Cooling down {self.BREAKER_TIMEOUT}s")
+            time.sleep(self.BREAKER_TIMEOUT)
+            self.consecutive_failures = 0
+        if not self.session:
+            return self.login()
+        if not self._validate():
+            logger.info("[SESSION] Invalid, re‑logging...")
+            return self.login()
+        self.consecutive_failures = 0
+        return True
+
+    def request(self, method, url, **kwargs):
+        if not self.ensure_session():
+            return None
+        try:
+            resp = self.session.request(method, url, **kwargs)
+            if resp.status_code in (503, 403):
+                logger.warning(f"[REQUEST] {resp.status_code}, re‑logging...")
+                self.login()
+                if self.session:
+                    resp = self.session.request(method, url, **kwargs)
+                    if resp.status_code == 200:
+                        self.consecutive_failures = 0
+                        return resp
+            if resp.status_code == 200:
+                return resp
+        except Exception as e:
+            logger.error(f"[REQUEST] Error: {e}")
+            self.consecutive_failures += 1
+            return None
+        self.consecutive_failures += 1
+        return None
+
+# ---------- GLOBAL SESSION ----------
+panel = PanelSession()
+
+# ---------- OTP CACHE ----------
+otp_cache = {"data": [], "timestamp": 0}
+cache_lock = threading.Lock()
+CACHE_TTL = 10
+CACHE_FALLBACK = 300
+
+# ---------- FETCH FUNCTIONS ----------
+def fetch_numbers():
+    url = f"{BASE_URL}/agent/res/data_smsnumbers.php"
+    params = {
+        "frange": "", "fclient": "", "fnumber": "",
+        "sEcho": "1", "iDisplayStart": "0", "iDisplayLength": "-1",
+        "_": int(time.time() * 1000)
+    }
+    if panel.sesskey:
+        params["sesskey"] = panel.sesskey
+    resp = panel.request(
+        "GET",
+        url,
+        headers={**HEADERS, "Referer": f"{BASE_URL}/agent/MySMSNumbers2"},
+        params=params,
+        timeout=15
+    )
+    if not resp or resp.status_code != 200:
+        return []
+    data = resp.json()
+    result = []
+    for row in data.get("aaData", []):
+        if len(row) < 4:
+            continue
+        raw = row[3].strip()
+        if not raw:
+            continue
+        cleaned = clean_number(raw)
+        if cleaned:
+            result.append({
+                "raw": raw,
+                "e164": cleaned['phone'],
+                "country": cleaned['country'],
+                "flag": cleaned['flag']
+            })
+        else:
+            result.append({"raw": raw, "e164": None, "country": "Unknown", "flag": "🌍"})
+    return result
+
 def fetch_otps_raw(limit=10):
     today = datetime.now().strftime("%Y-%m-%d")
-    url = f"{BASE_URL.rstrip('/')}/agent/res/data_smscdr.php"
+    url = f"{BASE_URL}/agent/res/data_smscdr.php"
     params = {
         "fdate1": f"{today} 00:00:00",
         "fdate2": f"{today} 23:59:59",
@@ -636,29 +624,27 @@ def fetch_otps_raw(limit=10):
     resp = panel.request(
         "GET",
         url,
-        headers={**HEADERS, "Referer": f"{BASE_URL.rstrip('/')}/agent/SMSCDRStats"},
+        headers={**HEADERS, "Referer": f"{BASE_URL}/agent/SMSCDRStats"},
         params=params,
         timeout=20
     )
     if not resp or resp.status_code != 200:
-        print("[OTP] Fetch failed")
         return None
 
     try:
         data = resp.json()
     except:
-        print("[OTP] Invalid JSON")
         return None
 
     if not data.get("aaData"):
         # Try without sesskey
         if "sesskey" in params:
             del params["sesskey"]
-            resp2 = panel.request("GET", url, headers={**HEADERS, "Referer": f"{BASE_URL.rstrip('/')}/agent/SMSCDRStats"}, params=params, timeout=20)
+            resp2 = panel.request("GET", url, headers={**HEADERS, "Referer": f"{BASE_URL}/agent/SMSCDRStats"}, params=params, timeout=20)
             if resp2 and resp2.status_code == 200:
                 data = resp2.json()
                 if data.get("aaData"):
-                    print("[OTP] Success without sesskey")
+                    logger.info("[OTP] Success without sesskey")
                 else:
                     return []
             else:
@@ -695,18 +681,18 @@ def fetch_otps_raw(limit=10):
         })
         if len(result) >= limit:
             break
-    print(f"[OTP] Fetched {len(result)} OTPs")
     return result
 
+# ---------- CACHE ----------
 def refresh_cache():
     with cache_lock:
         fresh = fetch_otps_raw(10)
         if fresh is not None:
             otp_cache["data"] = fresh
             otp_cache["timestamp"] = time.time()
-            print(f"[CACHE] Updated with {len(fresh)} OTPs")
+            logger.info(f"[CACHE] Updated with {len(fresh)} OTPs")
         else:
-            print("[CACHE] Refresh failed, keeping old data")
+            logger.warning("[CACHE] Refresh failed, keeping old data")
 
 def get_cached_otps():
     now = time.time()
@@ -721,90 +707,51 @@ def get_cached_otps():
 # ---------- ROUTES ----------
 @app.route("/")
 def root():
-    return jsonify({"message": "Panel Scraper", "endpoints": ["/numbers", "/sms"], "status": "online"})
+    return jsonify({
+        "message": "Panel Scraper – Python (Node.js logic)",
+        "endpoints": ["/numbers", "/sms", "/logs"],
+        "status": "online"
+    })
 
 @app.route("/numbers")
 def numbers():
-    url = f"{BASE_URL.rstrip('/')}/agent/res/data_smsnumbers.php"
-    params = {
-        "frange": "", "fclient": "", "fnumber": "",
-        "sEcho": "1", "iDisplayStart": "0", "iDisplayLength": "-1",
-        "_": int(time.time() * 1000)
-    }
-    if panel.sesskey:
-        params["sesskey"] = panel.sesskey
-    resp = panel.request(
-        "GET",
-        url,
-        headers={**HEADERS, "Referer": f"{BASE_URL.rstrip('/')}/agent/MySMSNumbers2"},
-        params=params,
-        timeout=15
-    )
-    if not resp or resp.status_code != 200:
-        return jsonify({"success": False, "error": "Failed to fetch numbers"}), 500
-    data = resp.json()
-    result = []
-    for row in data.get("aaData", []):
-        if len(row) < 4:
-            continue
-        raw = row[3].strip()
-        if not raw:
-            continue
-        cleaned = clean_number(raw)
-        if cleaned:
-            result.append({
-                "raw": raw,
-                "e164": cleaned['phone'],
-                "country": cleaned['country'],
-                "flag": cleaned['flag']
-            })
-        else:
-            result.append({"raw": raw, "e164": None, "country": "Unknown", "flag": "🌍"})
-    return jsonify({"success": True, "count": len(result), "numbers": result})
+    try:
+        data = fetch_numbers()
+        return jsonify({"success": True, "count": len(data), "numbers": data})
+    except Exception as e:
+        logger.error(f"/numbers error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/sms")
 def sms():
-    refresh = request.args.get('refresh', 'false').lower() == 'true'
-    if refresh:
-        with cache_lock:
-            fresh = fetch_otps_raw(10)
-            if fresh is not None:
-                otp_cache["data"] = fresh
-                otp_cache["timestamp"] = time.time()
-            else:
-                return jsonify({"success": False, "error": "Failed to fetch fresh OTPs"}), 500
-    data = get_cached_otps()
-    return jsonify({"success": True, "count": len(data), "otps": data})
+    try:
+        refresh = request.args.get('refresh', 'false').lower() == 'true'
+        if refresh:
+            with cache_lock:
+                fresh = fetch_otps_raw(10)
+                if fresh is not None:
+                    otp_cache["data"] = fresh
+                    otp_cache["timestamp"] = time.time()
+                else:
+                    return jsonify({"success": False, "error": "Failed to fetch fresh OTPs"}), 500
+        data = get_cached_otps()
+        return jsonify({"success": True, "count": len(data), "otps": data})
+    except Exception as e:
+        logger.error(f"/sms error: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route("/debug/otp-raw")
-def debug_otp_raw():
-    today = datetime.now().strftime("%Y-%m-%d")
-    url = f"{BASE_URL.rstrip('/')}/agent/res/data_smscdr.php"
-    params = {
-        "fdate1": f"{today} 00:00:00",
-        "fdate2": f"{today} 23:59:59",
-        "frange": "", "fclient": "", "fnum": "", "fcli": "",
-        "fgdate": "", "fgmonth": "", "fgrange": "", "fgclient": "",
-        "fgnumber": "", "fgcli": "",
-        "fg": "0",
-        "sEcho": "1",
-        "iDisplayStart": "0",
-        "iDisplayLength": "5",
-        "_": int(time.time() * 1000)
-    }
-    if panel.sesskey:
-        params["sesskey"] = panel.sesskey
-    resp = panel.request("GET", url, headers={**HEADERS, "Referer": f"{BASE_URL.rstrip('/')}/agent/SMSCDRStats"}, params=params, timeout=20)
-    if not resp:
-        return jsonify({"error": "No response", "session_exists": panel.session is not None})
-    return jsonify({
-        "status_code": resp.status_code,
-        "headers": dict(resp.headers),
-        "text_preview": resp.text[:1000],
-        "json": resp.json() if resp.headers.get('content-type', '').startswith('application/json') else None
-    })
+@app.route("/logs")
+def logs():
+    """Return the last 100 lines of the log file."""
+    try:
+        with open('app.log', 'r') as f:
+            lines = f.readlines()
+        tail = lines[-100:] if len(lines) > 100 else lines
+        return jsonify({"success": True, "logs": "".join(tail)})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
-# ---------- BACKGROUND ----------
+# ---------- BACKGROUND REFRESH ----------
 def background_loop():
     while True:
         time.sleep(30)
@@ -812,10 +759,10 @@ def background_loop():
 
 # ---------- MAIN ----------
 if __name__ == "__main__":
-    print("[INIT] Logging in...")
+    logger.info("[INIT] Logging in...")
     if panel.login():
-        print("[INIT] ✅ Login successful.")
+        logger.info("[INIT] ✅ Login successful.")
         threading.Thread(target=background_loop, daemon=True).start()
     else:
-        print("[INIT] ❌ Login failed. Endpoints may error.")
+        logger.error("[INIT] ❌ Login failed. Endpoints may error.")
     app.run(debug=False, host='0.0.0.0', port=8000)
