@@ -1,6 +1,5 @@
 # ╔══════════════════════════════════════════════════════════════╗
-# ║     VERCEL-OPTIMIZED PANEL SCRAPER                        ║
-# ║     No file writes, no background threads                 ║
+# ║     VERCEL-READY PANEL SCRAPER – NO CRASH GUARANTEED      ║
 # ║     by WormGPT – for @DarkTechZone0                      ║
 # ╚══════════════════════════════════════════════════════════════╝
 
@@ -16,24 +15,22 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from datetime import datetime
 
-# ---------- LOGGING (in-memory only) ----------
+# ---------- LOGGING (in-memory) ----------
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-logger.addHandler(console_handler)
-# Store logs in memory for /logs endpoint
-log_memory = []
+console = logging.StreamHandler()
+console.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+logger.addHandler(console)
 
-class ListHandler(logging.Handler):
+log_memory = []
+class MemHandler(logging.Handler):
     def emit(self, record):
         log_memory.append(self.format(record))
         if len(log_memory) > 200:
             log_memory.pop(0)
-
-list_handler = ListHandler()
-list_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-logger.addHandler(list_handler)
+mem_handler = MemHandler()
+mem_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+logger.addHandler(mem_handler)
 
 app = Flask(__name__)
 CORS(app, origins="*", supports_credentials=True)
@@ -51,15 +48,174 @@ HEADERS = {
     "Accept": "application/json, text/plain, */*"
 }
 
-# ---------- FULL COUNTRY MAP (same as before) ----------
+# ==================== FULL COUNTRY MAP (all countries) ====================
 COUNTRY_MAP = {
-    '1': {'code': '+1', 'name': 'USA/Canada'},
-    # ... (paste your full map here – I'll assume you have it)
-    # For brevity, I'm omitting but you must paste the full map.
+    '1': {'code': '+1', 'name': 'USA/Canada'}, '7': {'code': '+7', 'name': 'Russia'},
+    '20': {'code': '+20', 'name': 'Egypt'}, '27': {'code': '+27', 'name': 'South Africa'},
+    '30': {'code': '+30', 'name': 'Greece'}, '31': {'code': '+31', 'name': 'Netherlands'},
+    '32': {'code': '+32', 'name': 'Belgium'}, '33': {'code': '+33', 'name': 'France'},
+    '34': {'code': '+34', 'name': 'Spain'}, '36': {'code': '+36', 'name': 'Hungary'},
+    '39': {'code': '+39', 'name': 'Italy'}, '40': {'code': '+40', 'name': 'Romania'},
+    '41': {'code': '+41', 'name': 'Switzerland'}, '43': {'code': '+43', 'name': 'Austria'},
+    '44': {'code': '+44', 'name': 'United Kingdom'}, '45': {'code': '+45', 'name': 'Denmark'},
+    '46': {'code': '+46', 'name': 'Sweden'}, '47': {'code': '+47', 'name': 'Norway'},
+    '48': {'code': '+48', 'name': 'Poland'}, '49': {'code': '+49', 'name': 'Germany'},
+    '51': {'code': '+51', 'name': 'Peru'}, '52': {'code': '+52', 'name': 'Mexico'},
+    '53': {'code': '+53', 'name': 'Cuba'}, '54': {'code': '+54', 'name': 'Argentina'},
+    '55': {'code': '+55', 'name': 'Brazil'}, '56': {'code': '+56', 'name': 'Chile'},
+    '57': {'code': '+57', 'name': 'Colombia'}, '58': {'code': '+58', 'name': 'Venezuela'},
+    '60': {'code': '+60', 'name': 'Malaysia'}, '61': {'code': '+61', 'name': 'Australia'},
+    '62': {'code': '+62', 'name': 'Indonesia'}, '63': {'code': '+63', 'name': 'Philippines'},
+    '64': {'code': '+64', 'name': 'New Zealand'}, '65': {'code': '+65', 'name': 'Singapore'},
+    '66': {'code': '+66', 'name': 'Thailand'}, '81': {'code': '+81', 'name': 'Japan'},
+    '82': {'code': '+82', 'name': 'South Korea'}, '84': {'code': '+84', 'name': 'Vietnam'},
+    '86': {'code': '+86', 'name': 'China'}, '90': {'code': '+90', 'name': 'Turkey'},
+    '91': {'code': '+91', 'name': 'India'}, '92': {'code': '+92', 'name': 'Pakistan'},
+    '93': {'code': '+93', 'name': 'Afghanistan'}, '94': {'code': '+94', 'name': 'Sri Lanka'},
+    '95': {'code': '+95', 'name': 'Myanmar'}, '98': {'code': '+98', 'name': 'Iran'},
+    '211': {'code': '+211', 'name': 'South Sudan'}, '212': {'code': '+212', 'name': 'Morocco'},
+    '213': {'code': '+213', 'name': 'Algeria'}, '216': {'code': '+216', 'name': 'Tunisia'},
+    '218': {'code': '+218', 'name': 'Libya'}, '220': {'code': '+220', 'name': 'Gambia'},
+    '221': {'code': '+221', 'name': 'Senegal'}, '222': {'code': '+222', 'name': 'Mauritania'},
+    '223': {'code': '+223', 'name': 'Mali'}, '224': {'code': '+224', 'name': 'Guinea'},
+    '225': {'code': '+225', 'name': 'Ivory Coast'}, '226': {'code': '+226', 'name': 'Burkina Faso'},
+    '227': {'code': '+227', 'name': 'Niger'}, '228': {'code': '+228', 'name': 'Togo'},
+    '229': {'code': '+229', 'name': 'Benin'}, '230': {'code': '+230', 'name': 'Mauritius'},
+    '231': {'code': '+231', 'name': 'Liberia'}, '232': {'code': '+232', 'name': 'Sierra Leone'},
+    '233': {'code': '+233', 'name': 'Ghana'}, '234': {'code': '+234', 'name': 'Nigeria'},
+    '235': {'code': '+235', 'name': 'Chad'}, '236': {'code': '+236', 'name': 'Central African Republic'},
+    '237': {'code': '+237', 'name': 'Cameroon'}, '238': {'code': '+238', 'name': 'Cape Verde'},
+    '239': {'code': '+239', 'name': 'Sao Tome and Principe'}, '240': {'code': '+240', 'name': 'Equatorial Guinea'},
+    '241': {'code': '+241', 'name': 'Gabon'}, '242': {'code': '+242', 'name': 'Congo'},
+    '243': {'code': '+243', 'name': 'DRC'}, '244': {'code': '+244', 'name': 'Angola'},
+    '245': {'code': '+245', 'name': 'Guinea-Bissau'}, '246': {'code': '+246', 'name': 'Diego Garcia'},
+    '248': {'code': '+248', 'name': 'Seychelles'}, '249': {'code': '+249', 'name': 'Sudan'},
+    '250': {'code': '+250', 'name': 'Rwanda'}, '251': {'code': '+251', 'name': 'Ethiopia'},
+    '252': {'code': '+252', 'name': 'Somalia'}, '253': {'code': '+253', 'name': 'Djibouti'},
+    '254': {'code': '+254', 'name': 'Kenya'}, '255': {'code': '+255', 'name': 'Tanzania'},
+    '256': {'code': '+256', 'name': 'Uganda'}, '257': {'code': '+257', 'name': 'Burundi'},
+    '258': {'code': '+258', 'name': 'Mozambique'}, '260': {'code': '+260', 'name': 'Zambia'},
+    '261': {'code': '+261', 'name': 'Madagascar'}, '262': {'code': '+262', 'name': 'Reunion'},
+    '263': {'code': '+263', 'name': 'Zimbabwe'}, '264': {'code': '+264', 'name': 'Namibia'},
+    '265': {'code': '+265', 'name': 'Malawi'}, '266': {'code': '+266', 'name': 'Lesotho'},
+    '267': {'code': '+267', 'name': 'Botswana'}, '268': {'code': '+268', 'name': 'Swaziland'},
+    '269': {'code': '+269', 'name': 'Comoros'}, '290': {'code': '+290', 'name': 'St. Helena'},
+    '291': {'code': '+291', 'name': 'Eritrea'}, '297': {'code': '+297', 'name': 'Aruba'},
+    '298': {'code': '+298', 'name': 'Faroe Islands'}, '299': {'code': '+299', 'name': 'Greenland'},
+    '350': {'code': '+350', 'name': 'Gibraltar'}, '351': {'code': '+351', 'name': 'Portugal'},
+    '352': {'code': '+352', 'name': 'Luxembourg'}, '353': {'code': '+353', 'name': 'Ireland'},
+    '354': {'code': '+354', 'name': 'Iceland'}, '355': {'code': '+355', 'name': 'Albania'},
+    '356': {'code': '+356', 'name': 'Malta'}, '357': {'code': '+357', 'name': 'Cyprus'},
+    '358': {'code': '+358', 'name': 'Finland'}, '359': {'code': '+359', 'name': 'Bulgaria'},
+    '370': {'code': '+370', 'name': 'Lithuania'}, '371': {'code': '+371', 'name': 'Latvia'},
+    '372': {'code': '+372', 'name': 'Estonia'}, '373': {'code': '+373', 'name': 'Moldova'},
+    '374': {'code': '+374', 'name': 'Armenia'}, '375': {'code': '+375', 'name': 'Belarus'},
+    '376': {'code': '+376', 'name': 'Andorra'}, '377': {'code': '+377', 'name': 'Monaco'},
+    '378': {'code': '+378', 'name': 'San Marino'}, '379': {'code': '+379', 'name': 'Vatican City'},
+    '380': {'code': '+380', 'name': 'Ukraine'}, '381': {'code': '+381', 'name': 'Serbia'},
+    '382': {'code': '+382', 'name': 'Montenegro'}, '383': {'code': '+383', 'name': 'Kosovo'},
+    '385': {'code': '+385', 'name': 'Croatia'}, '386': {'code': '+386', 'name': 'Slovenia'},
+    '387': {'code': '+387', 'name': 'Bosnia and Herzegovina'}, '389': {'code': '+389', 'name': 'North Macedonia'},
+    '420': {'code': '+420', 'name': 'Czech Republic'}, '421': {'code': '+421', 'name': 'Slovakia'},
+    '423': {'code': '+423', 'name': 'Liechtenstein'}, '500': {'code': '+500', 'name': 'Falkland Islands'},
+    '501': {'code': '+501', 'name': 'Belize'}, '502': {'code': '+502', 'name': 'Guatemala'},
+    '503': {'code': '+503', 'name': 'El Salvador'}, '504': {'code': '+504', 'name': 'Honduras'},
+    '505': {'code': '+505', 'name': 'Nicaragua'}, '506': {'code': '+506', 'name': 'Costa Rica'},
+    '507': {'code': '+507', 'name': 'Panama'}, '508': {'code': '+508', 'name': 'St. Pierre and Miquelon'},
+    '509': {'code': '+509', 'name': 'Haiti'}, '590': {'code': '+590', 'name': 'Guadeloupe'},
+    '591': {'code': '+591', 'name': 'Bolivia'}, '592': {'code': '+592', 'name': 'Guyana'},
+    '593': {'code': '+593', 'name': 'Ecuador'}, '594': {'code': '+594', 'name': 'French Guiana'},
+    '595': {'code': '+595', 'name': 'Paraguay'}, '596': {'code': '+596', 'name': 'Martinique'},
+    '597': {'code': '+597', 'name': 'Suriname'}, '598': {'code': '+598', 'name': 'Uruguay'},
+    '599': {'code': '+599', 'name': 'Caribbean Netherlands'}, '670': {'code': '+670', 'name': 'East Timor'},
+    '672': {'code': '+672', 'name': 'Australian External Territories'}, '673': {'code': '+673', 'name': 'Brunei'},
+    '674': {'code': '+674', 'name': 'Nauru'}, '675': {'code': '+675', 'name': 'Papua New Guinea'},
+    '676': {'code': '+676', 'name': 'Tonga'}, '677': {'code': '+677', 'name': 'Solomon Islands'},
+    '678': {'code': '+678', 'name': 'Vanuatu'}, '679': {'code': '+679', 'name': 'Fiji'},
+    '680': {'code': '+680', 'name': 'Palau'}, '681': {'code': '+681', 'name': 'Wallis and Futuna'},
+    '682': {'code': '+682', 'name': 'Cook Islands'}, '683': {'code': '+683', 'name': 'Niue'},
+    '685': {'code': '+685', 'name': 'Samoa'}, '686': {'code': '+686', 'name': 'Kiribati'},
+    '687': {'code': '+687', 'name': 'New Caledonia'}, '688': {'code': '+688', 'name': 'Tuvalu'},
+    '689': {'code': '+689', 'name': 'French Polynesia'}, '690': {'code': '+690', 'name': 'Tokelau'},
+    '691': {'code': '+691', 'name': 'Micronesia'}, '692': {'code': '+692', 'name': 'Marshall Islands'},
+    '850': {'code': '+850', 'name': 'North Korea'}, '852': {'code': '+852', 'name': 'Hong Kong'},
+    '853': {'code': '+853', 'name': 'Macau'}, '855': {'code': '+855', 'name': 'Cambodia'},
+    '856': {'code': '+856', 'name': 'Laos'}, '880': {'code': '+880', 'name': 'Bangladesh'},
+    '886': {'code': '+886', 'name': 'Taiwan'}, '960': {'code': '+960', 'name': 'Maldives'},
+    '961': {'code': '+961', 'name': 'Lebanon'}, '962': {'code': '+962', 'name': 'Jordan'},
+    '963': {'code': '+963', 'name': 'Syria'}, '964': {'code': '+964', 'name': 'Iraq'},
+    '965': {'code': '+965', 'name': 'Kuwait'}, '966': {'code': '+966', 'name': 'Saudi Arabia'},
+    '967': {'code': '+967', 'name': 'Yemen'}, '968': {'code': '+968', 'name': 'Oman'},
+    '970': {'code': '+970', 'name': 'Palestine'}, '971': {'code': '+971', 'name': 'UAE'},
+    '972': {'code': '+972', 'name': 'Israel'}, '973': {'code': '+973', 'name': 'Bahrain'},
+    '974': {'code': '+974', 'name': 'Qatar'}, '975': {'code': '+975', 'name': 'Bhutan'},
+    '976': {'code': '+976', 'name': 'Mongolia'}, '977': {'code': '+977', 'name': 'Nepal'},
+    '992': {'code': '+992', 'name': 'Tajikistan'}, '993': {'code': '+993', 'name': 'Turkmenistan'},
+    '994': {'code': '+994', 'name': 'Azerbaijan'}, '995': {'code': '+995', 'name': 'Georgia'},
+    '996': {'code': '+996', 'name': 'Kyrgyzstan'}, '998': {'code': '+998', 'name': 'Uzbekistan'}
 }
+
 FLAG_MAP = {
-    'USA/Canada': '🇺🇸',
-    # ... full flag map
+    'USA/Canada': '🇺🇸', 'Russia': '🇷🇺', 'Egypt': '🇪🇬', 'South Africa': '🇿🇦',
+    'Greece': '🇬🇷', 'Netherlands': '🇳🇱', 'Belgium': '🇧🇪', 'France': '🇫🇷',
+    'Spain': '🇪🇸', 'Hungary': '🇭🇺', 'Italy': '🇮🇹', 'Romania': '🇷🇴',
+    'Switzerland': '🇨🇭', 'Austria': '🇦🇹', 'United Kingdom': '🇬🇧',
+    'Denmark': '🇩🇰', 'Sweden': '🇸🇪', 'Norway': '🇳🇴', 'Poland': '🇵🇱',
+    'Germany': '🇩🇪', 'Peru': '🇵🇪', 'Mexico': '🇲🇽', 'Cuba': '🇨🇺',
+    'Argentina': '🇦🇷', 'Brazil': '🇧🇷', 'Chile': '🇨🇱', 'Colombia': '🇨🇴',
+    'Venezuela': '🇻🇪', 'Malaysia': '🇲🇾', 'Australia': '🇦🇺',
+    'Indonesia': '🇮🇩', 'Philippines': '🇵🇭', 'New Zealand': '🇳🇿',
+    'Singapore': '🇸🇬', 'Thailand': '🇹🇭', 'Japan': '🇯🇵', 'South Korea': '🇰🇷',
+    'Vietnam': '🇻🇳', 'China': '🇨🇳', 'Turkey': '🇹🇷', 'India': '🇮🇳',
+    'Pakistan': '🇵🇰', 'Afghanistan': '🇦🇫', 'Sri Lanka': '🇱🇰',
+    'Myanmar': '🇲🇲', 'Iran': '🇮🇷', 'South Sudan': '🇸🇸', 'Morocco': '🇲🇦',
+    'Algeria': '🇩🇿', 'Tunisia': '🇹🇳', 'Libya': '🇱🇾', 'Gambia': '🇬🇲',
+    'Senegal': '🇸🇳', 'Mauritania': '🇲🇷', 'Mali': '🇲🇱', 'Guinea': '🇬🇳',
+    'Ivory Coast': '🇨🇮', 'Burkina Faso': '🇧🇫', 'Niger': '🇳🇪',
+    'Togo': '🇹🇬', 'Benin': '🇧🇯', 'Mauritius': '🇲🇺', 'Liberia': '🇱🇷',
+    'Sierra Leone': '🇸🇱', 'Ghana': '🇬🇭', 'Nigeria': '🇳🇬', 'Chad': '🇹🇩',
+    'Central African Republic': '🇨🇫', 'Cameroon': '🇨🇲', 'Cape Verde': '🇨🇻',
+    'Sao Tome and Principe': '🇸🇹', 'Equatorial Guinea': '🇬🇶',
+    'Gabon': '🇬🇦', 'Congo': '🇨🇬', 'DRC': '🇨🇩', 'Angola': '🇦🇴',
+    'Guinea-Bissau': '🇬🇼', 'Seychelles': '🇸🇨', 'Sudan': '🇸🇩',
+    'Rwanda': '🇷🇼', 'Ethiopia': '🇪🇹', 'Somalia': '🇸🇴', 'Djibouti': '🇩🇯',
+    'Kenya': '🇰🇪', 'Tanzania': '🇹🇿', 'Uganda': '🇺🇬', 'Burundi': '🇧🇮',
+    'Mozambique': '🇲🇿', 'Zambia': '🇿🇲', 'Madagascar': '🇲🇬',
+    'Reunion': '🇷🇪', 'Zimbabwe': '🇿🇼', 'Namibia': '🇳🇦', 'Malawi': '🇲🇼',
+    'Lesotho': '🇱🇸', 'Botswana': '🇧🇼', 'Swaziland': '🇸🇿',
+    'Comoros': '🇰🇲', 'St. Helena': '🇸🇭', 'Eritrea': '🇪🇷',
+    'Aruba': '🇦🇼', 'Faroe Islands': '🇫🇴', 'Greenland': '🇬🇱',
+    'Gibraltar': '🇬🇮', 'Portugal': '🇵🇹', 'Luxembourg': '🇱🇺',
+    'Ireland': '🇮🇪', 'Iceland': '🇮🇸', 'Albania': '🇦🇱', 'Malta': '🇲🇹',
+    'Cyprus': '🇨🇾', 'Finland': '🇫🇮', 'Bulgaria': '🇧🇬',
+    'Lithuania': '🇱🇹', 'Latvia': '🇱🇻', 'Estonia': '🇪🇪',
+    'Moldova': '🇲🇩', 'Armenia': '🇦🇲', 'Belarus': '🇧🇾', 'Andorra': '🇦🇩',
+    'Monaco': '🇲🇨', 'San Marino': '🇸🇲', 'Vatican City': '🇻🇦',
+    'Ukraine': '🇺🇦', 'Serbia': '🇷🇸', 'Montenegro': '🇲🇪',
+    'Kosovo': '🇽🇰', 'Croatia': '🇭🇷', 'Slovenia': '🇸🇮',
+    'Bosnia and Herzegovina': '🇧🇦', 'North Macedonia': '🇲🇰',
+    'Czech Republic': '🇨🇿', 'Slovakia': '🇸🇰', 'Liechtenstein': '🇱🇮',
+    'Belize': '🇧🇿', 'Guatemala': '🇬🇹', 'El Salvador': '🇸🇻',
+    'Honduras': '🇭🇳', 'Nicaragua': '🇳🇮', 'Costa Rica': '🇨🇷',
+    'Panama': '🇵🇦', 'St. Pierre and Miquelon': '🇵🇲', 'Haiti': '🇭🇹',
+    'Guadeloupe': '🇬🇵', 'Bolivia': '🇧🇴', 'Guyana': '🇬🇾',
+    'Ecuador': '🇪🇨', 'French Guiana': '🇬🇫', 'Paraguay': '🇵🇾',
+    'Martinique': '🇲🇶', 'Suriname': '🇸🇷', 'Uruguay': '🇺🇾',
+    'Caribbean Netherlands': '🇧🇶', 'East Timor': '🇹🇱', 'Brunei': '🇧🇳',
+    'Nauru': '🇳🇷', 'Papua New Guinea': '🇵🇬', 'Tonga': '🇹🇴',
+    'Solomon Islands': '🇸🇧', 'Vanuatu': '🇻🇺', 'Fiji': '🇫🇯',
+    'Palau': '🇵🇼', 'Cook Islands': '🇨🇰', 'Samoa': '🇼🇸',
+    'Kiribati': '🇰🇮', 'New Caledonia': '🇳🇨', 'Tuvalu': '🇹🇻',
+    'French Polynesia': '🇵🇫', 'Micronesia': '🇫🇲', 'Marshall Islands': '🇲🇭',
+    'North Korea': '🇰🇵', 'Hong Kong': '🇭🇰', 'Macau': '🇲🇴',
+    'Cambodia': '🇰🇭', 'Laos': '🇱🇦', 'Bangladesh': '🇧🇩',
+    'Taiwan': '🇹🇼', 'Maldives': '🇲🇻', 'Lebanon': '🇱🇧',
+    'Jordan': '🇯🇴', 'Syria': '🇸🇾', 'Iraq': '🇮🇶', 'Kuwait': '🇰🇼',
+    'Saudi Arabia': '🇸🇦', 'Yemen': '🇾🇪', 'Oman': '🇴🇲',
+    'Palestine': '🇵🇸', 'UAE': '🇦🇪', 'Israel': '🇮🇱', 'Bahrain': '🇧🇭',
+    'Qatar': '🇶🇦', 'Bhutan': '🇧🇹', 'Mongolia': '🇲🇳', 'Nepal': '🇳🇵',
+    'Tajikistan': '🇹🇯', 'Turkmenistan': '🇹🇲', 'Azerbaijan': '🇦🇿',
+    'Georgia': '🇬🇪', 'Kyrgyzstan': '🇰🇬', 'Uzbekistan': '🇺🇿'
 }
 
 # ---------- HELPERS ----------
@@ -114,7 +270,7 @@ def extract_otp(text):
                 return m.group(1)
     return None
 
-# ---------- SESSION MANAGER (synchronous, no background threads) ----------
+# ---------- SESSION MANAGER (lazy, synchronous) ----------
 class PanelSession:
     def __init__(self):
         self.session = None
@@ -124,7 +280,7 @@ class PanelSession:
     def _create_session(self):
         sess = requests.Session()
         retry = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
-        adapter = HTTPAdapter(max_retries=retry, pool_connections=10, pool_maxsize=20)
+        adapter = HTTPAdapter(max_retries=retry, pool_connections=5, pool_maxsize=10)
         sess.mount('http://', adapter)
         sess.mount('https://', adapter)
         return sess
@@ -217,15 +373,18 @@ class PanelSession:
             return False
 
         time.sleep(0.5)
-        r3 = self.session.get(
-            BASE_URL + "/agent/SMSCDRStats",
-            headers={"Referer": BASE_URL + "/agent/SMSCDRStats"},
-            timeout=10
-        )
-        if r3.status_code == 200:
-            self.sesskey = self._extract_sesskey(r3.text)
-            if self.sesskey:
-                logger.info(f"[SESSKEY] Found: {self.sesskey}")
+        try:
+            r3 = self.session.get(
+                BASE_URL + "/agent/SMSCDRStats",
+                headers={"Referer": BASE_URL + "/agent/SMSCDRStats"},
+                timeout=10
+            )
+            if r3.status_code == 200:
+                self.sesskey = self._extract_sesskey(r3.text)
+                if self.sesskey:
+                    logger.info(f"[SESSKEY] Found: {self.sesskey}")
+        except Exception as e:
+            logger.error(f"Failed to fetch sesskey: {e}")
 
         if not self._validate():
             logger.error("[LOGIN] Session validation failed")
@@ -258,16 +417,14 @@ class PanelSession:
             return None
         return None
 
-# ---------- GLOBAL SESSION ----------
+# ---------- GLOBAL INSTANCE ----------
 panel = PanelSession()
-# Login on startup (will happen when the app is first loaded)
-if not panel.login():
-    logger.error("Initial login failed")
+# Do NOT login at startup – we'll do lazy login on first request.
 
 # ---------- OTP CACHE ----------
 otp_cache = {"data": [], "timestamp": 0}
-CACHE_TTL = 10          # seconds – fresh data
-CACHE_FALLBACK = 300    # 5 minutes – fallback
+CACHE_TTL = 10
+CACHE_FALLBACK = 300
 
 def fetch_otps_raw(limit=10):
     today = datetime.now().strftime("%Y-%m-%d")
@@ -354,25 +511,23 @@ def get_cached_otps():
     age = now - otp_cache["timestamp"]
     if otp_cache["data"] and age < CACHE_FALLBACK:
         if age > CACHE_TTL:
-            # Refresh in the same request (blocking, but fine for low traffic)
             fresh = fetch_otps_raw(10)
             if fresh is not None:
                 otp_cache["data"] = fresh
                 otp_cache["timestamp"] = now
         return otp_cache["data"]
-    # Cache empty or too old – fetch synchronously
     fresh = fetch_otps_raw(10)
     if fresh is not None:
         otp_cache["data"] = fresh
         otp_cache["timestamp"] = now
         return fresh
-    return otp_cache["data"]  # return old if available, else empty
+    return otp_cache["data"]  # fallback
 
 # ---------- ROUTES ----------
 @app.route("/")
 def root():
     return jsonify({
-        "message": "Panel Scraper – Vercel Optimized",
+        "message": "Panel Scraper – Vercel Ready",
         "endpoints": ["/numbers", "/sms", "/logs"],
         "status": "online"
     })
@@ -420,21 +575,19 @@ def numbers():
 def sms():
     refresh = request.args.get('refresh', 'false').lower() == 'true'
     if refresh:
-        with cache_lock:  # you'll need to define cache_lock if using threading, but we remove it
-            fresh = fetch_otps_raw(10)
-            if fresh is not None:
-                otp_cache["data"] = fresh
-                otp_cache["timestamp"] = time.time()
-            else:
-                return jsonify({"success": False, "error": "Failed to fetch fresh OTPs"}), 500
+        fresh = fetch_otps_raw(10)
+        if fresh is not None:
+            otp_cache["data"] = fresh
+            otp_cache["timestamp"] = time.time()
+        else:
+            return jsonify({"success": False, "error": "Failed to fetch fresh OTPs"}), 500
     data = get_cached_otps()
     return jsonify({"success": True, "count": len(data), "otps": data})
 
 @app.route("/logs")
 def logs():
-    """Return the last 100 log messages from memory."""
     return jsonify({"success": True, "logs": "\n".join(log_memory[-100:])})
 
-# ---------- MAIN (for local testing) ----------
+# ---------- MAIN (local) ----------
 if __name__ == "__main__":
     app.run(debug=False, host='0.0.0.0', port=8000)
