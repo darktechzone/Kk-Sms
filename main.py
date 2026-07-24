@@ -1,5 +1,5 @@
 # ╔══════════════════════════════════════════════════════════════╗
-# ║     HYBRID PANEL SCRAPER – Node.js Brain + Old Python      ║
+# ║     ULTIMATE PANEL SCRAPER – Auto‑Discovery Edition        ║
 # ║     Survives password changes, fetches OTPs reliably       ║
 # ║     by @DarkTechZone0 – for WormGPT                       ║
 # ╚══════════════════════════════════════════════════════════════╝
@@ -14,12 +14,12 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-from datetime import datetime, timedelta
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app, origins="*", supports_credentials=True)
 
-# ---------- CONFIG (same as old) ----------
+# ---------- CONFIG ----------
 BASE_URL = os.environ.get("PANEL_BASE_URL", "http://54.38.176.48/ints/")
 USERNAME = os.environ.get("PANEL_USER", "Hassnain756")
 PASSWORD = os.environ.get("PANEL_PASS", "Hassnain756")
@@ -27,12 +27,286 @@ PASSWORD = os.environ.get("PANEL_PASS", "Hassnain756")
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36",
     "X-Requested-With": "XMLHttpRequest",
-    "Origin": BASE_URL,
+    "Origin": BASE_URL.rstrip('/'),
     "Accept-Language": "en-US,en;q=0.9",
     "Accept": "application/json, text/plain, */*"
 }
 
-# ---------- SESSION MANAGER (Node.js style) ----------
+# ---------- COMPLETE COUNTRY MAP (ALL COUNTRIES) ----------
+# (I've included the full map from earlier – paste it here)
+COUNTRY_MAP = {
+    '1': {'code': '+1', 'name': 'USA/Canada'},
+    '7': {'code': '+7', 'name': 'Russia'},
+    '20': {'code': '+20', 'name': 'Egypt'},
+    '27': {'code': '+27', 'name': 'South Africa'},
+    '30': {'code': '+30', 'name': 'Greece'},
+    '31': {'code': '+31', 'name': 'Netherlands'},
+    '32': {'code': '+32', 'name': 'Belgium'},
+    '33': {'code': '+33', 'name': 'France'},
+    '34': {'code': '+34', 'name': 'Spain'},
+    '36': {'code': '+36', 'name': 'Hungary'},
+    '39': {'code': '+39', 'name': 'Italy'},
+    '40': {'code': '+40', 'name': 'Romania'},
+    '41': {'code': '+41', 'name': 'Switzerland'},
+    '43': {'code': '+43', 'name': 'Austria'},
+    '44': {'code': '+44', 'name': 'United Kingdom'},
+    '45': {'code': '+45', 'name': 'Denmark'},
+    '46': {'code': '+46', 'name': 'Sweden'},
+    '47': {'code': '+47', 'name': 'Norway'},
+    '48': {'code': '+48', 'name': 'Poland'},
+    '49': {'code': '+49', 'name': 'Germany'},
+    '51': {'code': '+51', 'name': 'Peru'},
+    '52': {'code': '+52', 'name': 'Mexico'},
+    '53': {'code': '+53', 'name': 'Cuba'},
+    '54': {'code': '+54', 'name': 'Argentina'},
+    '55': {'code': '+55', 'name': 'Brazil'},
+    '56': {'code': '+56', 'name': 'Chile'},
+    '57': {'code': '+57', 'name': 'Colombia'},
+    '58': {'code': '+58', 'name': 'Venezuela'},
+    '60': {'code': '+60', 'name': 'Malaysia'},
+    '61': {'code': '+61', 'name': 'Australia'},
+    '62': {'code': '+62', 'name': 'Indonesia'},
+    '63': {'code': '+63', 'name': 'Philippines'},
+    '64': {'code': '+64', 'name': 'New Zealand'},
+    '65': {'code': '+65', 'name': 'Singapore'},
+    '66': {'code': '+66', 'name': 'Thailand'},
+    '81': {'code': '+81', 'name': 'Japan'},
+    '82': {'code': '+82', 'name': 'South Korea'},
+    '84': {'code': '+84', 'name': 'Vietnam'},
+    '86': {'code': '+86', 'name': 'China'},
+    '90': {'code': '+90', 'name': 'Turkey'},
+    '91': {'code': '+91', 'name': 'India'},
+    '92': {'code': '+92', 'name': 'Pakistan'},
+    '93': {'code': '+93', 'name': 'Afghanistan'},
+    '94': {'code': '+94', 'name': 'Sri Lanka'},
+    '95': {'code': '+95', 'name': 'Myanmar'},
+    '98': {'code': '+98', 'name': 'Iran'},
+    '211': {'code': '+211', 'name': 'South Sudan'},
+    '212': {'code': '+212', 'name': 'Morocco'},
+    '213': {'code': '+213', 'name': 'Algeria'},
+    '216': {'code': '+216', 'name': 'Tunisia'},
+    '218': {'code': '+218', 'name': 'Libya'},
+    '220': {'code': '+220', 'name': 'Gambia'},
+    '221': {'code': '+221', 'name': 'Senegal'},
+    '222': {'code': '+222', 'name': 'Mauritania'},
+    '223': {'code': '+223', 'name': 'Mali'},
+    '224': {'code': '+224', 'name': 'Guinea'},
+    '225': {'code': '+225', 'name': 'Ivory Coast'},
+    '226': {'code': '+226', 'name': 'Burkina Faso'},
+    '227': {'code': '+227', 'name': 'Niger'},
+    '228': {'code': '+228', 'name': 'Togo'},
+    '229': {'code': '+229', 'name': 'Benin'},
+    '230': {'code': '+230', 'name': 'Mauritius'},
+    '231': {'code': '+231', 'name': 'Liberia'},
+    '232': {'code': '+232', 'name': 'Sierra Leone'},
+    '233': {'code': '+233', 'name': 'Ghana'},
+    '234': {'code': '+234', 'name': 'Nigeria'},
+    '235': {'code': '+235', 'name': 'Chad'},
+    '236': {'code': '+236', 'name': 'Central African Republic'},
+    '237': {'code': '+237', 'name': 'Cameroon'},
+    '238': {'code': '+238', 'name': 'Cape Verde'},
+    '239': {'code': '+239', 'name': 'Sao Tome and Principe'},
+    '240': {'code': '+240', 'name': 'Equatorial Guinea'},
+    '241': {'code': '+241', 'name': 'Gabon'},
+    '242': {'code': '+242', 'name': 'Congo'},
+    '243': {'code': '+243', 'name': 'DRC'},
+    '244': {'code': '+244', 'name': 'Angola'},
+    '245': {'code': '+245', 'name': 'Guinea-Bissau'},
+    '246': {'code': '+246', 'name': 'Diego Garcia'},
+    '248': {'code': '+248', 'name': 'Seychelles'},
+    '249': {'code': '+249', 'name': 'Sudan'},
+    '250': {'code': '+250', 'name': 'Rwanda'},
+    '251': {'code': '+251', 'name': 'Ethiopia'},
+    '252': {'code': '+252', 'name': 'Somalia'},
+    '253': {'code': '+253', 'name': 'Djibouti'},
+    '254': {'code': '+254', 'name': 'Kenya'},
+    '255': {'code': '+255', 'name': 'Tanzania'},
+    '256': {'code': '+256', 'name': 'Uganda'},
+    '257': {'code': '+257', 'name': 'Burundi'},
+    '258': {'code': '+258', 'name': 'Mozambique'},
+    '260': {'code': '+260', 'name': 'Zambia'},
+    '261': {'code': '+261', 'name': 'Madagascar'},
+    '262': {'code': '+262', 'name': 'Reunion'},
+    '263': {'code': '+263', 'name': 'Zimbabwe'},
+    '264': {'code': '+264', 'name': 'Namibia'},
+    '265': {'code': '+265', 'name': 'Malawi'},
+    '266': {'code': '+266', 'name': 'Lesotho'},
+    '267': {'code': '+267', 'name': 'Botswana'},
+    '268': {'code': '+268', 'name': 'Swaziland'},
+    '269': {'code': '+269', 'name': 'Comoros'},
+    '290': {'code': '+290', 'name': 'St. Helena'},
+    '291': {'code': '+291', 'name': 'Eritrea'},
+    '297': {'code': '+297', 'name': 'Aruba'},
+    '298': {'code': '+298', 'name': 'Faroe Islands'},
+    '299': {'code': '+299', 'name': 'Greenland'},
+    '350': {'code': '+350', 'name': 'Gibraltar'},
+    '351': {'code': '+351', 'name': 'Portugal'},
+    '352': {'code': '+352', 'name': 'Luxembourg'},
+    '353': {'code': '+353', 'name': 'Ireland'},
+    '354': {'code': '+354', 'name': 'Iceland'},
+    '355': {'code': '+355', 'name': 'Albania'},
+    '356': {'code': '+356', 'name': 'Malta'},
+    '357': {'code': '+357', 'name': 'Cyprus'},
+    '358': {'code': '+358', 'name': 'Finland'},
+    '359': {'code': '+359', 'name': 'Bulgaria'},
+    '370': {'code': '+370', 'name': 'Lithuania'},
+    '371': {'code': '+371', 'name': 'Latvia'},
+    '372': {'code': '+372', 'name': 'Estonia'},
+    '373': {'code': '+373', 'name': 'Moldova'},
+    '374': {'code': '+374', 'name': 'Armenia'},
+    '375': {'code': '+375', 'name': 'Belarus'},
+    '376': {'code': '+376', 'name': 'Andorra'},
+    '377': {'code': '+377', 'name': 'Monaco'},
+    '378': {'code': '+378', 'name': 'San Marino'},
+    '379': {'code': '+379', 'name': 'Vatican City'},
+    '380': {'code': '+380', 'name': 'Ukraine'},
+    '381': {'code': '+381', 'name': 'Serbia'},
+    '382': {'code': '+382', 'name': 'Montenegro'},
+    '383': {'code': '+383', 'name': 'Kosovo'},
+    '385': {'code': '+385', 'name': 'Croatia'},
+    '386': {'code': '+386', 'name': 'Slovenia'},
+    '387': {'code': '+387', 'name': 'Bosnia and Herzegovina'},
+    '389': {'code': '+389', 'name': 'North Macedonia'},
+    '420': {'code': '+420', 'name': 'Czech Republic'},
+    '421': {'code': '+421', 'name': 'Slovakia'},
+    '423': {'code': '+423', 'name': 'Liechtenstein'},
+    '500': {'code': '+500', 'name': 'Falkland Islands'},
+    '501': {'code': '+501', 'name': 'Belize'},
+    '502': {'code': '+502', 'name': 'Guatemala'},
+    '503': {'code': '+503', 'name': 'El Salvador'},
+    '504': {'code': '+504', 'name': 'Honduras'},
+    '505': {'code': '+505', 'name': 'Nicaragua'},
+    '506': {'code': '+506', 'name': 'Costa Rica'},
+    '507': {'code': '+507', 'name': 'Panama'},
+    '508': {'code': '+508', 'name': 'St. Pierre and Miquelon'},
+    '509': {'code': '+509', 'name': 'Haiti'},
+    '590': {'code': '+590', 'name': 'Guadeloupe'},
+    '591': {'code': '+591', 'name': 'Bolivia'},
+    '592': {'code': '+592', 'name': 'Guyana'},
+    '593': {'code': '+593', 'name': 'Ecuador'},
+    '594': {'code': '+594', 'name': 'French Guiana'},
+    '595': {'code': '+595', 'name': 'Paraguay'},
+    '596': {'code': '+596', 'name': 'Martinique'},
+    '597': {'code': '+597', 'name': 'Suriname'},
+    '598': {'code': '+598', 'name': 'Uruguay'},
+    '599': {'code': '+599', 'name': 'Caribbean Netherlands'},
+    '670': {'code': '+670', 'name': 'East Timor'},
+    '672': {'code': '+672', 'name': 'Australian External Territories'},
+    '673': {'code': '+673', 'name': 'Brunei'},
+    '674': {'code': '+674', 'name': 'Nauru'},
+    '675': {'code': '+675', 'name': 'Papua New Guinea'},
+    '676': {'code': '+676', 'name': 'Tonga'},
+    '677': {'code': '+677', 'name': 'Solomon Islands'},
+    '678': {'code': '+678', 'name': 'Vanuatu'},
+    '679': {'code': '+679', 'name': 'Fiji'},
+    '680': {'code': '+680', 'name': 'Palau'},
+    '681': {'code': '+681', 'name': 'Wallis and Futuna'},
+    '682': {'code': '+682', 'name': 'Cook Islands'},
+    '683': {'code': '+683', 'name': 'Niue'},
+    '685': {'code': '+685', 'name': 'Samoa'},
+    '686': {'code': '+686', 'name': 'Kiribati'},
+    '687': {'code': '+687', 'name': 'New Caledonia'},
+    '688': {'code': '+688', 'name': 'Tuvalu'},
+    '689': {'code': '+689', 'name': 'French Polynesia'},
+    '690': {'code': '+690', 'name': 'Tokelau'},
+    '691': {'code': '+691', 'name': 'Micronesia'},
+    '692': {'code': '+692', 'name': 'Marshall Islands'},
+    '850': {'code': '+850', 'name': 'North Korea'},
+    '852': {'code': '+852', 'name': 'Hong Kong'},
+    '853': {'code': '+853', 'name': 'Macau'},
+    '855': {'code': '+855', 'name': 'Cambodia'},
+    '856': {'code': '+856', 'name': 'Laos'},
+    '880': {'code': '+880', 'name': 'Bangladesh'},
+    '886': {'code': '+886', 'name': 'Taiwan'},
+    '960': {'code': '+960', 'name': 'Maldives'},
+    '961': {'code': '+961', 'name': 'Lebanon'},
+    '962': {'code': '+962', 'name': 'Jordan'},
+    '963': {'code': '+963', 'name': 'Syria'},
+    '964': {'code': '+964', 'name': 'Iraq'},
+    '965': {'code': '+965', 'name': 'Kuwait'},
+    '966': {'code': '+966', 'name': 'Saudi Arabia'},
+    '967': {'code': '+967', 'name': 'Yemen'},
+    '968': {'code': '+968', 'name': 'Oman'},
+    '970': {'code': '+970', 'name': 'Palestine'},
+    '971': {'code': '+971', 'name': 'UAE'},
+    '972': {'code': '+972', 'name': 'Israel'},
+    '973': {'code': '+973', 'name': 'Bahrain'},
+    '974': {'code': '+974', 'name': 'Qatar'},
+    '975': {'code': '+975', 'name': 'Bhutan'},
+    '976': {'code': '+976', 'name': 'Mongolia'},
+    '977': {'code': '+977', 'name': 'Nepal'},
+    '992': {'code': '+992', 'name': 'Tajikistan'},
+    '993': {'code': '+993', 'name': 'Turkmenistan'},
+    '994': {'code': '+994', 'name': 'Azerbaijan'},
+    '995': {'code': '+995', 'name': 'Georgia'},
+    '996': {'code': '+996', 'name': 'Kyrgyzstan'},
+    '998': {'code': '+998', 'name': 'Uzbekistan'}
+}
+
+FLAG_MAP = {
+    'USA/Canada': '🇺🇸', 'Russia': '🇷🇺', 'Egypt': '🇪🇬', 'South Africa': '🇿🇦',
+    'Greece': '🇬🇷', 'Netherlands': '🇳🇱', 'Belgium': '🇧🇪', 'France': '🇫🇷',
+    'Spain': '🇪🇸', 'Hungary': '🇭🇺', 'Italy': '🇮🇹', 'Romania': '🇷🇴',
+    'Switzerland': '🇨🇭', 'Austria': '🇦🇹', 'United Kingdom': '🇬🇧',
+    'Denmark': '🇩🇰', 'Sweden': '🇸🇪', 'Norway': '🇳🇴', 'Poland': '🇵🇱',
+    'Germany': '🇩🇪', 'Peru': '🇵🇪', 'Mexico': '🇲🇽', 'Cuba': '🇨🇺',
+    'Argentina': '🇦🇷', 'Brazil': '🇧🇷', 'Chile': '🇨🇱', 'Colombia': '🇨🇴',
+    'Venezuela': '🇻🇪', 'Malaysia': '🇲🇾', 'Australia': '🇦🇺',
+    'Indonesia': '🇮🇩', 'Philippines': '🇵🇭', 'New Zealand': '🇳🇿',
+    'Singapore': '🇸🇬', 'Thailand': '🇹🇭', 'Japan': '🇯🇵', 'South Korea': '🇰🇷',
+    'Vietnam': '🇻🇳', 'China': '🇨🇳', 'Turkey': '🇹🇷', 'India': '🇮🇳',
+    'Pakistan': '🇵🇰', 'Afghanistan': '🇦🇫', 'Sri Lanka': '🇱🇰',
+    'Myanmar': '🇲🇲', 'Iran': '🇮🇷', 'South Sudan': '🇸🇸', 'Morocco': '🇲🇦',
+    'Algeria': '🇩🇿', 'Tunisia': '🇹🇳', 'Libya': '🇱🇾', 'Gambia': '🇬🇲',
+    'Senegal': '🇸🇳', 'Mauritania': '🇲🇷', 'Mali': '🇲🇱', 'Guinea': '🇬🇳',
+    'Ivory Coast': '🇨🇮', 'Burkina Faso': '🇧🇫', 'Niger': '🇳🇪',
+    'Togo': '🇹🇬', 'Benin': '🇧🇯', 'Mauritius': '🇲🇺', 'Liberia': '🇱🇷',
+    'Sierra Leone': '🇸🇱', 'Ghana': '🇬🇭', 'Nigeria': '🇳🇬', 'Chad': '🇹🇩',
+    'Central African Republic': '🇨🇫', 'Cameroon': '🇨🇲', 'Cape Verde': '🇨🇻',
+    'Sao Tome and Principe': '🇸🇹', 'Equatorial Guinea': '🇬🇶',
+    'Gabon': '🇬🇦', 'Congo': '🇨🇬', 'DRC': '🇨🇩', 'Angola': '🇦🇴',
+    'Guinea-Bissau': '🇬🇼', 'Seychelles': '🇸🇨', 'Sudan': '🇸🇩',
+    'Rwanda': '🇷🇼', 'Ethiopia': '🇪🇹', 'Somalia': '🇸🇴', 'Djibouti': '🇩🇯',
+    'Kenya': '🇰🇪', 'Tanzania': '🇹🇿', 'Uganda': '🇺🇬', 'Burundi': '🇧🇮',
+    'Mozambique': '🇲🇿', 'Zambia': '🇿🇲', 'Madagascar': '🇲🇬',
+    'Reunion': '🇷🇪', 'Zimbabwe': '🇿🇼', 'Namibia': '🇳🇦', 'Malawi': '🇲🇼',
+    'Lesotho': '🇱🇸', 'Botswana': '🇧🇼', 'Swaziland': '🇸🇿',
+    'Comoros': '🇰🇲', 'St. Helena': '🇸🇭', 'Eritrea': '🇪🇷',
+    'Aruba': '🇦🇼', 'Faroe Islands': '🇫🇴', 'Greenland': '🇬🇱',
+    'Gibraltar': '🇬🇮', 'Portugal': '🇵🇹', 'Luxembourg': '🇱🇺',
+    'Ireland': '🇮🇪', 'Iceland': '🇮🇸', 'Albania': '🇦🇱', 'Malta': '🇲🇹',
+    'Cyprus': '🇨🇾', 'Finland': '🇫🇮', 'Bulgaria': '🇧🇬',
+    'Lithuania': '🇱🇹', 'Latvia': '🇱🇻', 'Estonia': '🇪🇪',
+    'Moldova': '🇲🇩', 'Armenia': '🇦🇲', 'Belarus': '🇧🇾', 'Andorra': '🇦🇩',
+    'Monaco': '🇲🇨', 'San Marino': '🇸🇲', 'Vatican City': '🇻🇦',
+    'Ukraine': '🇺🇦', 'Serbia': '🇷🇸', 'Montenegro': '🇲🇪',
+    'Kosovo': '🇽🇰', 'Croatia': '🇭🇷', 'Slovenia': '🇸🇮',
+    'Bosnia and Herzegovina': '🇧🇦', 'North Macedonia': '🇲🇰',
+    'Czech Republic': '🇨🇿', 'Slovakia': '🇸🇰', 'Liechtenstein': '🇱🇮',
+    'Belize': '🇧🇿', 'Guatemala': '🇬🇹', 'El Salvador': '🇸🇻',
+    'Honduras': '🇭🇳', 'Nicaragua': '🇳🇮', 'Costa Rica': '🇨🇷',
+    'Panama': '🇵🇦', 'St. Pierre and Miquelon': '🇵🇲', 'Haiti': '🇭🇹',
+    'Guadeloupe': '🇬🇵', 'Bolivia': '🇧🇴', 'Guyana': '🇬🇾',
+    'Ecuador': '🇪🇨', 'French Guiana': '🇬🇫', 'Paraguay': '🇵🇾',
+    'Martinique': '🇲🇶', 'Suriname': '🇸🇷', 'Uruguay': '🇺🇾',
+    'Caribbean Netherlands': '🇧🇶', 'East Timor': '🇹🇱', 'Brunei': '🇧🇳',
+    'Nauru': '🇳🇷', 'Papua New Guinea': '🇵🇬', 'Tonga': '🇹🇴',
+    'Solomon Islands': '🇸🇧', 'Vanuatu': '🇻🇺', 'Fiji': '🇫🇯',
+    'Palau': '🇵🇼', 'Cook Islands': '🇨🇰', 'Samoa': '🇼🇸',
+    'Kiribati': '🇰🇮', 'New Caledonia': '🇳🇨', 'Tuvalu': '🇹🇻',
+    'French Polynesia': '🇵🇫', 'Micronesia': '🇫🇲', 'Marshall Islands': '🇲🇭',
+    'North Korea': '🇰🇵', 'Hong Kong': '🇭🇰', 'Macau': '🇲🇴',
+    'Cambodia': '🇰🇭', 'Laos': '🇱🇦', 'Bangladesh': '🇧🇩',
+    'Taiwan': '🇹🇼', 'Maldives': '🇲🇻', 'Lebanon': '🇱🇧',
+    'Jordan': '🇯🇴', 'Syria': '🇸🇾', 'Iraq': '🇮🇶', 'Kuwait': '🇰🇼',
+    'Saudi Arabia': '🇸🇦', 'Yemen': '🇾🇪', 'Oman': '🇴🇲',
+    'Palestine': '🇵🇸', 'UAE': '🇦🇪', 'Israel': '🇮🇱', 'Bahrain': '🇧🇭',
+    'Qatar': '🇶🇦', 'Bhutan': '🇧🇹', 'Mongolia': '🇲🇳', 'Nepal': '🇳🇵',
+    'Tajikistan': '🇹🇯', 'Turkmenistan': '🇹🇲', 'Azerbaijan': '🇦🇿',
+    'Georgia': '🇬🇪', 'Kyrgyzstan': '🇰🇬', 'Uzbekistan': '🇺🇿'
+}
+
+# ---------- SESSION MANAGER WITH AUTO‑DISCOVERY ----------
 class PanelSession:
     def __init__(self):
         self.session = None
@@ -44,6 +318,8 @@ class PanelSession:
         self.BREAKER_TIMEOUT = 30
         self.lock = threading.Lock()
         self._keep_alive_running = False
+        self.login_path = None
+        self.signin_path = None
 
     def _create_session(self):
         sess = requests.Session()
@@ -53,8 +329,42 @@ class PanelSession:
         sess.mount('https://', adapter)
         return sess
 
+    def _discover_login(self):
+        """Try common login page paths."""
+        test_paths = [
+            "/login", "/sign-in", "/admin/login", "/index.php/login",
+            "/auth/login", "/user/login", "/login.php", "/admin"
+        ]
+        for path in test_paths:
+            try:
+                r = self.session.get(BASE_URL.rstrip('/') + path, timeout=5, headers=HEADERS)
+                if r.status_code == 200 and ("login" in r.text.lower() or "sign in" in r.text.lower()):
+                    print(f"[DISCOVER] Found login at {path}")
+                    return path
+            except:
+                continue
+        return None
+
+    def _discover_signin(self):
+        """Try common signin/action paths."""
+        test_paths = ["/signin", "/login", "/auth", "/index.php/signin", "/admin/login", "/user/login"]
+        for path in test_paths:
+            try:
+                # Just test if it returns 200 or 302 when we send a dummy POST
+                r = self.session.post(BASE_URL.rstrip('/') + path, data={"test": "1"}, timeout=5, allow_redirects=False)
+                if r.status_code in (200, 302, 301):
+                    print(f"[DISCOVER] Found signin endpoint at {path}")
+                    return path
+            except:
+                continue
+        return None
+
     def _get_captcha_answer(self, html):
         m = re.search(r'What is (\d+) \+ (\d+) = \?', html)
+        if m:
+            return int(m[1]) + int(m[2])
+        # Try other captcha patterns
+        m = re.search(r'(\d+)\s*\+\s*(\d+)\s*=\s*\?', html)
         if m:
             return int(m[1]) + int(m[2])
         return None
@@ -74,13 +384,13 @@ class PanelSession:
 
     def _validate(self):
         try:
-            url = f"{BASE_URL}/agent/res/data_smsnumbers.php"
+            url = f"{BASE_URL.rstrip('/')}/agent/res/data_smsnumbers.php"
             params = {"sEcho": "1", "iDisplayStart": "0", "iDisplayLength": "1", "_": int(time.time()*1000)}
             if self.sesskey:
                 params["sesskey"] = self.sesskey
             resp = self.session.get(
                 url,
-                headers={**HEADERS, "Referer": f"{BASE_URL}/agent/MySMSNumbers2"},
+                headers={**HEADERS, "Referer": f"{BASE_URL.rstrip('/')}/agent/MySMSNumbers2"},
                 params=params,
                 timeout=10
             )
@@ -89,8 +399,8 @@ class PanelSession:
                 return self._validate()
             if resp.status_code == 200 and resp.json().get("aaData") is not None:
                 return True
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[VALIDATE] Error: {e}")
         return False
 
     def login(self):
@@ -104,53 +414,76 @@ class PanelSession:
             try:
                 print("[LOGIN] Starting...")
                 self.session = self._create_session()
-                login_paths = ["/login", "/sign-in"]
-                success = False
-                for path in login_paths:
-                    try:
-                        r1 = self.session.get(BASE_URL + path, timeout=10)
-                        if r1.status_code in (503, 403):
-                            print(f"[LOGIN] {r1.status_code} on {path}, waiting 3s...")
-                            time.sleep(3)
-                            continue
-                        if r1.status_code != 200:
-                            continue
-                        captcha = self._get_captcha_answer(r1.text)
-                        if not captcha:
-                            continue
-                        print(f"[LOGIN] Captcha answer: {captcha}")
-                        data = {"username": USERNAME, "password": PASSWORD, "capt": str(captcha)}
-                        r2 = self.session.post(
-                            BASE_URL + "/signin",
-                            data=data,
-                            allow_redirects=False,
-                            timeout=10
-                        )
-                        print(f"[LOGIN] POST status: {r2.status_code}")
-                        if r2.status_code in (503, 403):
-                            time.sleep(3)
-                            continue
-                        if r2.status_code in (302, 301):
-                            self.last_login = time.time()
-                            print(f"[LOGIN] Success ({r2.status_code})")
-                            success = True
-                            break
-                        elif r2.status_code == 200:
-                            if "logout" in r2.text.lower() or "dashboard" in r2.text.lower():
+
+                # 1. Discover login page
+                if not self.login_path:
+                    self.login_path = self._discover_login()
+                    if not self.login_path:
+                        raise Exception("Could not find login page")
+                login_url = BASE_URL.rstrip('/') + self.login_path
+
+                # 2. GET login page
+                r1 = self.session.get(login_url, headers=HEADERS, timeout=10)
+                if r1.status_code != 200:
+                    raise Exception(f"Login page returned {r1.status_code}")
+
+                # 3. Extract captcha if present
+                captcha = self._get_captcha_answer(r1.text)
+                if captcha:
+                    print(f"[LOGIN] Captcha answer: {captcha}")
+
+                # 4. Discover signin endpoint if not known
+                if not self.signin_path:
+                    self.signin_path = self._discover_signin()
+                    if not self.signin_path:
+                        # Try common /signin or /login
+                        self.signin_path = "/signin"
+                signin_url = BASE_URL.rstrip('/') + self.signin_path
+
+                # 5. Build payload
+                data = {"username": USERNAME, "password": PASSWORD}
+                if captcha:
+                    data["capt"] = str(captcha)
+
+                # 6. POST login
+                r2 = self.session.post(
+                    signin_url,
+                    data=data,
+                    headers={**HEADERS, "Content-Type": "application/x-www-form-urlencoded"},
+                    allow_redirects=False,
+                    timeout=10
+                )
+                print(f"[LOGIN] POST status: {r2.status_code}")
+
+                if r2.status_code in (302, 301):
+                    self.last_login = time.time()
+                    print("[LOGIN] Success (redirect)")
+                    success = True
+                elif r2.status_code == 200:
+                    if "logout" in r2.text.lower() or "dashboard" in r2.text.lower():
+                        self.last_login = time.time()
+                        print("[LOGIN] Success (200 with dashboard)")
+                        success = True
+                    else:
+                        # Maybe it's a JSON response
+                        try:
+                            json_resp = r2.json()
+                            if json_resp.get("status") == "success" or json_resp.get("success"):
                                 self.last_login = time.time()
-                                print("[LOGIN] Success (200)")
+                                print("[LOGIN] Success (JSON)")
                                 success = True
-                                break
-                    except Exception as e:
-                        print(f"[LOGIN] Error with {path}: {e}")
+                            else:
+                                raise Exception("Login failed")
+                        except:
+                            raise Exception("Login failed")
+                else:
+                    raise Exception(f"Login returned {r2.status_code}")
 
-                if not success:
-                    raise Exception("All login paths failed")
-
+                # 7. Fetch sesskey
                 time.sleep(0.5)
                 r3 = self.session.get(
-                    BASE_URL + "/agent/SMSCDRStats",
-                    headers={"Referer": BASE_URL + "/agent/SMSCDRStats"},
+                    BASE_URL.rstrip('/') + "/agent/SMSCDRStats",
+                    headers={"Referer": BASE_URL.rstrip('/') + "/agent/SMSCDRStats"},
                     timeout=10
                 )
                 if r3.status_code == 200:
@@ -158,12 +491,15 @@ class PanelSession:
                     if self.sesskey:
                         print(f"[SESSKEY] Found: {self.sesskey}")
 
+                # 8. Validate session
                 if not self._validate():
                     raise Exception("Session validation failed")
 
+                # 9. Start keep-alive
                 self._keep_alive_running = True
                 threading.Thread(target=self._keep_alive_loop, daemon=True).start()
                 return True
+
             except Exception as e:
                 print(f"[LOGIN] Failed: {e}")
                 self.session = None
@@ -177,7 +513,7 @@ class PanelSession:
             time.sleep(300)
             try:
                 if self.session:
-                    self.session.get(BASE_URL + "/agent/MySMSNumbers2", headers=HEADERS, timeout=5)
+                    self.session.get(BASE_URL.rstrip('/') + "/agent/MySMSNumbers2", headers=HEADERS, timeout=5)
                     print("[KEEP-ALIVE] Ping sent.")
             except:
                 pass
@@ -226,17 +562,7 @@ cache_lock = threading.Lock()
 CACHE_TTL = 10
 CACHE_FALLBACK = 300
 
-# ---------- COUNTRY MAP (full list – same as old) ----------
-COUNTRY_MAP = {
-    '1': {'code': '+1', 'name': 'USA/Canada'},
-    '7': {'code': '+7', 'name': 'Russia'},
-    # ... (include all from your old main.py, or I'll assume you have it)
-    # To save space, I'll truncate – but YOU MUST PASTE YOUR FULL MAP HERE.
-    # For brevity, I'll include only a few – but you should copy your existing map.
-}
-# Actually, I'll just reference that you should keep your full map.
-
-# ---------- HELPER FUNCTIONS (from old main.py) ----------
+# ---------- HELPERS ----------
 def get_country(phone_digits):
     for length in range(4, 0, -1):
         prefix = phone_digits[:length]
@@ -288,11 +614,10 @@ def extract_otp(text):
                 return m.group(1)
     return None
 
-# ---------- OTP FETCH – OLD MAIN.PY STYLE (with sesskey) ----------
+# ---------- FETCH OTPs ----------
 def fetch_otps_raw(limit=10):
-    """Exactly the old fetch_otps but using the panel session."""
-    today = datetime.now().strftime("%Y-%m-%d")  # old format
-    url = f"{BASE_URL}/agent/res/data_smscdr.php"
+    today = datetime.now().strftime("%Y-%m-%d")
+    url = f"{BASE_URL.rstrip('/')}/agent/res/data_smscdr.php"
     params = {
         "fdate1": f"{today} 00:00:00",
         "fdate2": f"{today} 23:59:59",
@@ -311,7 +636,7 @@ def fetch_otps_raw(limit=10):
     resp = panel.request(
         "GET",
         url,
-        headers={**HEADERS, "Referer": f"{BASE_URL}/agent/SMSCDRStats"},
+        headers={**HEADERS, "Referer": f"{BASE_URL.rstrip('/')}/agent/SMSCDRStats"},
         params=params,
         timeout=20
     )
@@ -326,10 +651,10 @@ def fetch_otps_raw(limit=10):
         return None
 
     if not data.get("aaData"):
-        # Try without sesskey as fallback
+        # Try without sesskey
         if "sesskey" in params:
             del params["sesskey"]
-            resp2 = panel.request("GET", url, headers={**HEADERS, "Referer": f"{BASE_URL}/agent/SMSCDRStats"}, params=params, timeout=20)
+            resp2 = panel.request("GET", url, headers={**HEADERS, "Referer": f"{BASE_URL.rstrip('/')}/agent/SMSCDRStats"}, params=params, timeout=20)
             if resp2 and resp2.status_code == 200:
                 data = resp2.json()
                 if data.get("aaData"):
@@ -396,11 +721,11 @@ def get_cached_otps():
 # ---------- ROUTES ----------
 @app.route("/")
 def root():
-    return jsonify({"message": "Hybrid Panel Scraper", "endpoints": ["/numbers", "/sms"], "status": "online"})
+    return jsonify({"message": "Panel Scraper", "endpoints": ["/numbers", "/sms"], "status": "online"})
 
 @app.route("/numbers")
 def numbers():
-    url = f"{BASE_URL}/agent/res/data_smsnumbers.php"
+    url = f"{BASE_URL.rstrip('/')}/agent/res/data_smsnumbers.php"
     params = {
         "frange": "", "fclient": "", "fnumber": "",
         "sEcho": "1", "iDisplayStart": "0", "iDisplayLength": "-1",
@@ -411,7 +736,7 @@ def numbers():
     resp = panel.request(
         "GET",
         url,
-        headers={**HEADERS, "Referer": f"{BASE_URL}/agent/MySMSNumbers2"},
+        headers={**HEADERS, "Referer": f"{BASE_URL.rstrip('/')}/agent/MySMSNumbers2"},
         params=params,
         timeout=15
     )
@@ -453,9 +778,8 @@ def sms():
 
 @app.route("/debug/otp-raw")
 def debug_otp_raw():
-    """Raw response from panel for debugging."""
     today = datetime.now().strftime("%Y-%m-%d")
-    url = f"{BASE_URL}/agent/res/data_smscdr.php"
+    url = f"{BASE_URL.rstrip('/')}/agent/res/data_smscdr.php"
     params = {
         "fdate1": f"{today} 00:00:00",
         "fdate2": f"{today} 23:59:59",
@@ -470,7 +794,7 @@ def debug_otp_raw():
     }
     if panel.sesskey:
         params["sesskey"] = panel.sesskey
-    resp = panel.request("GET", url, headers={**HEADERS, "Referer": f"{BASE_URL}/agent/SMSCDRStats"}, params=params, timeout=20)
+    resp = panel.request("GET", url, headers={**HEADERS, "Referer": f"{BASE_URL.rstrip('/')}/agent/SMSCDRStats"}, params=params, timeout=20)
     if not resp:
         return jsonify({"error": "No response", "session_exists": panel.session is not None})
     return jsonify({
@@ -480,7 +804,7 @@ def debug_otp_raw():
         "json": resp.json() if resp.headers.get('content-type', '').startswith('application/json') else None
     })
 
-# ---------- BACKGROUND TASKS ----------
+# ---------- BACKGROUND ----------
 def background_loop():
     while True:
         time.sleep(30)
