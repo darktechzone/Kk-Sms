@@ -40,7 +40,7 @@ CORS(app, origins="*", supports_credentials=True)
 # ---------- CONFIG (NEW PANEL) ----------
 BASE_URL = os.environ.get("PANEL_BASE_URL", "http://konektapremium.net")
 USERNAME = os.environ.get("PANEL_USER", "Slaeem777")
-PASSWORD = os.environ.get("PANEL_PASS", "DarkTechZone")
+PASSWORD = os.environ.get("PANEL_PASS", "Slaeem1234")
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36",
